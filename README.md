@@ -5,5 +5,5 @@ Integrantes:
 Artur Mota ([@ArturMota19](https://github.com/ArturMota19]))\
 Bruna Anunciação ([@bruna-anunciacao](https://github.com/bruna-anunciacao))\
 João Gabriel Lofiego ([@JGLofiego](https://github.com/JGLofiego))\
-Tauane Heloise ()\
+Tauane Heloise ([@tauanehelo](https://github.com/tauanehelo))\
 Victoria Beatriz Azevedo ([@VicBia](https://github.com/VicBia))
