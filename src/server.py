@@ -4,13 +4,14 @@ import os
 
 HOST = "127.0.0.1"
 PORT = 3000
+MAX_USERS = 5
 
 # Cria o socket do servidor
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server_address = (HOST, PORT)
 sock.bind(server_address)
-sock.listen()
+sock.listen(MAX_USERS)
 print(f"Iniciando o server no host {server_address[0]} com a porta {server_address[1]}")
 
 client_list = []
@@ -89,10 +90,22 @@ def authenticate(client: socket.socket):
 
 def receive():
     while True:
-        client, address = sock.accept()
-        print(f"Conexão estabelecida: {address}")
-
-        username = authenticate(client)
+        try:
+            client, address = sock.accept()
+            print(f"Conexão estabelecida: {address}")
+        except:
+            print("Conexão falhou.")
+            client.close()
+            continue
+        
+        try:
+            username = authenticate(client)
+        except:
+            print(f"Erro de autenticação da conexão {client.getpeername()}.")
+            print(f"Removendo conexão {client.getpeername()}.")
+            client.close()
+            continue
+        
         client_list.append(client)
         usernames.append(username)
 
@@ -101,4 +114,6 @@ def receive():
         thread = threading.Thread(target=handle, args=(client,))
         thread.start()
 
-receive()
+for i in range(MAX_USERS):
+    thread = threading.Thread(target=receive)
+    thread.start()
