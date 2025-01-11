@@ -4,33 +4,47 @@ import threading
 HOST = "127.0.0.1"
 PORT = 3000
 
-username = input("Digite o seu usuário: ")
-
-# Faz a conexão com o socket do servidor
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.connect((HOST, PORT))
 
 print("Conexão estabelecida!")
 
-print(f"{username} entrou no chat.")
-
-# Função que lida com recebimento de mensagens do servidor
 def receive():
     while True:
         try:
             message = client.recv(1024).decode("ascii")
-            
-            # Se a mensagem vinda do servidor for USERNAME, envia o usuário para o servidor
-            if message == "USERNAME":
+
+            if message == "REGISTER_OR_LOGIN":
+                choice = input("Digite 'REGISTER' para cadastrar ou 'LOGIN' para logar: ")
+                client.send(choice.encode("ascii"))
+
+            elif message == "USERNAME":
+                username = input("Digite o nome de usuário: ")
                 client.send(username.encode("ascii"))
-                
-            # Se a mensagem vinda do servidor for USERS, é a lista de usuários conectados
-            elif message.startswith("USERS"):
-                users = message[6:]
-                if users == "":
-                    print("Ninguém além de você no chat :(")
-                    continue
-                print(f"Usuários no chat: {message[6:]}")
+
+            elif message == "PASSWORD":
+                password = input("Digite a senha: ")
+                client.send(password.encode("ascii"))
+
+            elif message == "USER_EXISTS":
+                print("Usuário já existe. Tente novamente.")
+
+            elif message == "REGISTER_SUCCESS":
+                print("Cadastro realizado com sucesso!")
+                thread_wrt = threading.Thread(target=write)
+                thread_wrt.start()
+
+            elif message == "USER_NOT_FOUND":
+                print("Usuário não encontrado. Tente novamente.")
+
+            elif message == "INVALID_PASSWORD":
+                print("Senha incorreta. Tente novamente.")
+
+            elif message == "LOGIN_SUCCESS":
+                print("Login realizado com sucesso!")
+                thread_wrt = threading.Thread(target=write)
+                thread_wrt.start()
+
             else:
                 print(message)
         except:
@@ -38,16 +52,15 @@ def receive():
             client.close()
             break
 
-# Função que lida com mandar mensagens pro servidor
 def write():
-    input_message = input() 
-    message = f"{username}: {input_message}"
-    client.send(message.encode("ascii"))
+    while True:
+        try:
+            message = input()
+            client.send(message.encode("ascii"))
+        except:
+            print("Erro ao enviar mensagem.")
+            client.close()
+            break
 
-# Inicia a thread que lida com recebimento de mensagens
 thread_rcv = threading.Thread(target=receive)
 thread_rcv.start()
-
-# Inicia a thread que lida com envio de mensagens
-thread_wrt = threading.Thread(target=write)
-thread_wrt.start()

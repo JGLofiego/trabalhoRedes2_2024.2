@@ -1,77 +1,104 @@
 import socket
 import threading
+import os
 
 HOST = "127.0.0.1"
 PORT = 3000
-# Cria o socket do servidor, recebe como parâmetro família do socket e tipo de socket
-# AF_INET - Constante representando que a família de endereço é do tipo internet
-# SOCK_STREAM - Constante representando que o socket é do tipo TCP
-sock = socket.socket(socket.AF_INET,  socket.SOCK_STREAM)
 
-# Otimizador de socket para utilizar o mesmo endereço.
+# Cria o socket do servidor
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-# Vincula o socket ao endereço e a porta
 server_address = (HOST, PORT)
 sock.bind(server_address)
-
-# Função para o socket ouvir as possíveis conexões
 sock.listen()
-print (f"Iniciando o server no host {server_address[0]} com a porta {server_address[1]}")
+print(f"Iniciando o server no host {server_address[0]} com a porta {server_address[1]}")
 
-client_list: list[socket.socket] = []
+client_list = []
 usernames = []
+users = {}  # Armazena usernames e senhas
 
-# Função de enviar mensagem para todas as conexões
+# Carrega usuários do arquivo (se existir)
+if os.path.exists("users.txt"):
+    with open("users.txt", "r") as f:
+        for line in f:
+            username, password = line.strip().split(",")
+            users[username] = password
+
+def save_user(username, password):
+    """Salva um novo usuário no arquivo."""
+    with open("users.txt", "a") as f:
+        f.write(f"{username},{password}\n")
+
 def broadcast(message: str):
     for client in client_list:
-        client.send(message)
+        client.send(message.encode("ascii"))
 
-# Função de lidar com o cliente
 def handle(client: socket.socket):
     while True:
-        # Tenta receber uma mensagem do cliente, se ocorrer um erro significa que a conexão com o cliente foi perdida ou fechada.
         try:
-            message = client.recv(1024)
+            message = client.recv(1024).decode("ascii")
+            print(f"mensagem recebida de {client.getpeername()}:", message)
             broadcast(message)
-        # Removendo a conexão que causou o erro.
         except:
             index = client_list.index(client)
             client_list.remove(client)
             print(f"Conexão removida: {client.getpeername()}")
             client.close()
-            broadcast(f"{usernames[index]} saiu do chat.".encode("ascii"))
-            usernames.remove(usernames[index])
+            broadcast(f"{usernames[index]} saiu do chat.")
+            usernames.pop(index)
             break
 
-# Função para receber uma nova conexão.
-def receive():    
+def authenticate(client: socket.socket):
     while True:
-        # Só aceita o cliente, sem autenticação.
+        client.send("REGISTER_OR_LOGIN".encode("ascii"))
+        choice = client.recv(1024).decode("ascii")
+
+        if choice == "REGISTER":
+            client.send("USERNAME".encode("ascii"))
+            username = client.recv(1024).decode("ascii")
+
+            if username in users:
+                client.send("USER_EXISTS".encode("ascii"))
+                continue
+
+            client.send("PASSWORD".encode("ascii"))
+            password = client.recv(1024).decode("ascii")
+
+            users[username] = password
+            save_user(username, password)
+            client.send("REGISTER_SUCCESS".encode("ascii"))
+            return username
+
+        elif choice == "LOGIN":
+            client.send("USERNAME".encode("ascii"))
+            username = client.recv(1024).decode("ascii")
+
+            if username not in users:
+                client.send("USER_NOT_FOUND".encode("ascii"))
+                continue
+
+            client.send("PASSWORD".encode("ascii"))
+            password = client.recv(1024).decode("ascii")
+
+            if users[username] != password:
+                client.send("INVALID_PASSWORD".encode("ascii"))
+                continue
+
+            client.send("LOGIN_SUCCESS".encode("ascii"))
+            return username
+
+def receive():
+    while True:
         client, address = sock.accept()
         print(f"Conexão estabelecida: {address}")
-        
-        # Manda uma mensagem para o cliente pedindo o usuário
-        client.send("USERNAME".encode("ascii"))
-        
-        # Recebe a primeira resposta do cliente, ou seja, o usuário
-        username = client.recv(1024).decode("ascii")
-        
-        # Manda uma mensagem para o cliente com todos os usuários presentes
-        client.send(("USERS " + ", ".join(usernames)).encode("ascii"))
-        
-        print(f"Usuario: {username}")
-        broadcast(f"{username} se juntou ao chat!".encode("ascii"))
-        
+
+        username = authenticate(client)
         client_list.append(client)
         usernames.append(username)
-        
-        # Ao conectar o usuário, cria uma thread para o cliente
-        # Cada thread é responsável por receber as mensagens daquele cliente específico
+
+        broadcast(f"{username} se juntou ao chat!")
+
         thread = threading.Thread(target=handle, args=(client,))
         thread.start()
 
 receive()
-        
-
-        
