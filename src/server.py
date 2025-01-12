@@ -10,10 +10,10 @@ MAX_USERS = 5
 # Gera chaves para criptografia
 public_key, private_key = gerar_chave_publica_e_privada()
 n, e = public_key
-print(f"Chave pública: {public_key}")
-print(f"Chave privada: {private_key}")
-print(f"n: {n}")
-print(f"e: {e}")
+# print(f"Chave pública: {public_key}")
+# print(f"Chave privada: {private_key}")
+# print(f"n: {n}")
+# print(f"e: {e}")
 
 # Cria o socket do servidor
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -41,7 +41,7 @@ def save_user(username, password):
 
 def broadcast(message: str, sender: socket.socket, n, e):
     encrypted_message = cifrar_texto(message, e, n)
-    print(f"Mensagem cifrada: {encrypted_message}")
+    # print(f"Mensagem cifrada: {encrypted_message}")
     for client in client_list:
         if client != sender:  
             try:
