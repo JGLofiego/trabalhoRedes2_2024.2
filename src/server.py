@@ -30,22 +30,27 @@ def save_user(username, password):
     with open("users.txt", "a") as f:
         f.write(f"{username},{password}\n")
 
-def broadcast(message: str):
+def broadcast(message: str, sender: socket.socket):
     for client in client_list:
-        client.send(message.encode("ascii"))
+        if client != sender:  # Não envie a mensagem de volta ao remetente
+            try:
+                client.send(message.encode("ascii"))
+            except Exception as e:
+                print(f"Erro ao enviar mensagem para o cliente {client.getpeername()}: {e}")
+
 
 def handle(client: socket.socket):
     while True:
         try:
             message = client.recv(1024).decode("ascii")
             print(f"mensagem recebida de {client.getpeername()}:", message)
-            broadcast(message)
+            broadcast(message, client)
         except:
             index = client_list.index(client)
             client_list.remove(client)
             print(f"Conexão removida: {client.getpeername()}")
             client.close()
-            broadcast(f"{usernames[index]} saiu do chat.")
+            broadcast(f"{usernames[index]} saiu do chat.", None)
             usernames.pop(index)
             break
 
@@ -53,17 +58,21 @@ def authenticate(client: socket.socket):
     while True:
         client.send("REGISTER_OR_LOGIN".encode("ascii"))
         choice = client.recv(1024).decode("ascii")
+        print(f"Escolha recebida do cliente: {choice}")
+
 
         if choice == "REGISTER":
             client.send("USERNAME".encode("ascii"))
             username = client.recv(1024).decode("ascii")
-
+            print(f"Username para registro: {username}")
+            
             if username in users:
                 client.send("USER_EXISTS".encode("ascii"))
                 continue
 
             client.send("PASSWORD".encode("ascii"))
             password = client.recv(1024).decode("ascii")
+            print(f"Senha para registro: {password}")
 
             users[username] = password
             save_user(username, password)
@@ -109,7 +118,7 @@ def receive():
         client_list.append(client)
         usernames.append(username)
 
-        broadcast(f"{username} se juntou ao chat!")
+        broadcast(f"{username} se juntou ao chat!", client)  # Não envie para o remetente
 
         thread = threading.Thread(target=handle, args=(client,))
         thread.start()
