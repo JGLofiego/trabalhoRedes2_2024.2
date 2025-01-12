@@ -1,8 +1,17 @@
 import socket
 import threading
+from crypto import gerar_chave_publica_e_privada, decifrar_texto, cifrar_texto
 
 HOST = "127.0.0.1"
 PORT = 3000
+
+# Gera chaves para criptografia
+public_key, private_key = gerar_chave_publica_e_privada()
+n, e = public_key
+print(f"Chave pública: {public_key}")
+print(f"Chave privada: {private_key}")
+print(f"n: {n}")
+print(f"e: {e}")
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.connect((HOST, PORT))

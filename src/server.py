@@ -1,10 +1,19 @@
 import socket
 import threading
 import os
+from crypto import gerar_chave_publica_e_privada, decifrar_texto, cifrar_texto
 
 HOST = "127.0.0.1"
 PORT = 3000
 MAX_USERS = 5
+
+# Gera chaves para criptografia
+public_key, private_key = gerar_chave_publica_e_privada()
+n, e = public_key
+print(f"Chave pública: {public_key}")
+print(f"Chave privada: {private_key}")
+print(f"n: {n}")
+print(f"e: {e}")
 
 # Cria o socket do servidor
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -31,10 +40,15 @@ def save_user(username, password):
         f.write(f"{username},{password}\n")
 
 def broadcast(message: str, sender: socket.socket):
+    public_key, private_key = gerar_chave_publica_e_privada()
+    n, e = public_key
+
+    encrypted_message = cifrar_texto(message, e, n)
+    print(f"Mensagem cifrada: {encrypted_message}")
     for client in client_list:
         if client != sender:  
             try:
-                client.send(message.encode("ascii"))
+                client.send(str(encrypted_message).encode("ascii"))
             except Exception as e:
                 print(f"Erro ao enviar mensagem para o cliente {client.getpeername()}: {e}")
 

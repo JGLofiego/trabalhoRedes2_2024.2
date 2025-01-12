@@ -99,9 +99,9 @@ def calcular_chave_privada(toti, e):
 
 
 # Função para gerar chaves públicas e privadas
-# def gerar_chave_publica_e_privada():
-if __name__=='__main__':
-    mensagem = "EU N SEI"
+def gerar_chave_publica_e_privada():
+# if __name__=='__main__':
+    # mensagem = "EU N SEI"
     p = gerar_primo() 
     q = gerar_primo() 
     n = p * q 
@@ -109,11 +109,11 @@ if __name__=='__main__':
     e = gerar_E(totiente_N) 
     chave_publica = (n, e)
     d = calcular_chave_privada(totiente_N, e)
-    # return chave_publica, d
+    return chave_publica, d
     
-    print('Sua chave pública:', chave_publica)
-    mensagem_cifrada = cifrar_texto(mensagem, e, n)
-    print('Sua mensagem cifrada:', mensagem_cifrada)
-    print('Sua chave privada é:', d)
-    mensagem_original = decifrar_texto(mensagem_cifrada, n, d)
-    print('Sua mensagem original:', ''.join(mensagem_original))
+    # print('Sua chave pública:', chave_publica)
+    # mensagem_cifrada = cifrar_texto(mensagem, e, n)
+    # print('Sua mensagem cifrada:', mensagem_cifrada)
+    # print('Sua chave privada é:', d)
+    # mensagem_original = decifrar_texto(mensagem_cifrada, n, d)
+    # print('Sua mensagem original:', ''.join(mensagem_original))
