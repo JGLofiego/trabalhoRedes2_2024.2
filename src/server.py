@@ -32,7 +32,7 @@ def save_user(username, password):
 
 def broadcast(message: str, sender: socket.socket):
     for client in client_list:
-        if client != sender:  # Não envie a mensagem de volta ao remetente
+        if client != sender:  
             try:
                 client.send(message.encode("ascii"))
             except Exception as e:
