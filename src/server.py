@@ -3,7 +3,7 @@ import threading
 import os
 from crypto import gerar_chave_publica_e_privada, decifrar_texto, cifrar_texto
 
-HOST = "127.0.0.1"
+HOST = "localhost"
 PORT = 3000
 MAX_USERS = 5
 
@@ -68,44 +68,64 @@ def handle(client: socket.socket):
 
 def authenticate(client: socket.socket):
     while True:
+        addr = client.getpeername()
+        
         client.send("REGISTER_OR_LOGIN".encode("ascii"))
+        print(f"Requisitando escolha de autenticação de {addr}")
         choice = client.recv(1024).decode("ascii")
         print(f"Escolha recebida do cliente: {choice}")
 
 
-        if choice == "REGISTER" or choice == "register":
-            client.send("USERNAME".encode("ascii"))
-            username = client.recv(1024).decode("ascii")
-            print(f"Username para registro: {username}")
+        if choice == "REGISTER":
+            print(f"Registro escolhido por {addr}")
             
+            print(f"Requisitando username de {addr}")
+            client.send("USERNAME".encode("ascii"))
+            
+            username = client.recv(1024).decode("ascii")
+            print(f"Usuario recebido de {addr}: {username}")
+
             if username in users:
+                print(f"Usuário {username} já existe.")
                 client.send("USER_EXISTS".encode("ascii"))
                 continue
 
+            print(f"Requisitando senha de {addr}")
             client.send("PASSWORD".encode("ascii"))
             password = client.recv(1024).decode("ascii")
-            print(f"Senha para registro: {password}")
+            print(f"Senha recebida de {addr}")
 
             users[username] = password
             save_user(username, password)
+            
+            print(f"Usuário {username} registrado com sucesso em {addr}.")
             client.send("REGISTER_SUCCESS".encode("ascii"))
             return username
 
-        elif choice == "LOGIN" or choice == "login":
+        elif choice == "LOGIN":
+            print(f"Login escolhido por {addr}")
+            
+            print(f"Requisitando username de {addr}")
             client.send("USERNAME".encode("ascii"))
             username = client.recv(1024).decode("ascii")
+            print(f"Usuario recebido de {addr}: {username}")
 
             if username not in users:
+                print(f"Usuário {username} não encontrado.")
                 client.send("USER_NOT_FOUND".encode("ascii"))
                 continue
 
+            print(f"Requisitando senha de {addr}")
             client.send("PASSWORD".encode("ascii"))
             password = client.recv(1024).decode("ascii")
+            print(f"Senha recebida de {addr}")
 
             if users[username] != password:
+                print(f"Senha incorreta para o usuário {username}.")
                 client.send("INVALID_PASSWORD".encode("ascii"))
                 continue
 
+            print(f"Usuário {username} logado com sucesso em {addr}.")
             client.send("LOGIN_SUCCESS".encode("ascii"))
             return username
 
