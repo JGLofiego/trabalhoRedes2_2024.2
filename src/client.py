@@ -59,7 +59,13 @@ def receive(client: socket.socket):
                 print("Login realizado com sucesso!")
                 thread_wrt = threading.Thread(target=write, args=(client,))
                 thread_wrt.start()
-
+            elif message.startswith("JOINED"):
+                parts = message.split(" ", 1)
+                print(f"Entrou num chat privado com {parts[1]}. Digite '/leave' caso queira sair.")
+            elif message == "LEFT":
+                print("Você saiu do modo privado")
+            elif message == "USER_LEFT":
+                print("Usuário não está mais online, voltando ao modo grupo.")
             else:
                 print(message)
         except:
@@ -70,7 +76,7 @@ def receive(client: socket.socket):
 def write(client: socket.socket):
     while True:
         try:
-            message = input("Digite sua mensagem: ")
+            message = input()
             client.send(message.encode("ascii"))
         except EOFError:
             print("Mensagem inválida.")

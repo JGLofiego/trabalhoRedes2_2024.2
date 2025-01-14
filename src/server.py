@@ -34,12 +34,44 @@ def broadcast(message: str):
     for client in client_list:
         client.send(message.encode("ascii"))
 
-def handle(client: socket.socket):
+def handle(client: socket.socket):    
+    private = None
+    
     while True:
         try:
             message = client.recv(1024).decode("ascii")
             print(f"mensagem recebida de {client.getpeername()}:", message)
-            broadcast(message)
+            
+            if message.startswith("/join"):
+                parts = message.split(" ", 1)
+                
+                if len(parts) < 2:
+                    client.send("INVALID".encode("ascii"))
+                    continue
+                
+                index = usernames.index(parts[1])
+                private = client_list[index]
+                
+                
+                client.send(f"JOINED {parts[1]}".encode("ascii"))
+            elif message.startswith("/leave"):
+                private = None
+                client.send("LEFT".encode("ascii"))
+            else:
+                if not private:
+                    name = usernames[client_list.index(client)]
+                    broadcast(f"{name}: {message}")
+                else:
+                    try:
+                        index_client = client_list.index(client)
+                        private.send(f"{usernames[index_client]} >> {message}".encode("ascii"))
+                    except OSError:
+                        client.send("USER_LEFT".encode("ascii"))
+                        private = None
+                        continue
+        except ValueError:
+            client.send("USER_NOT_FOUND".encode("ascii"))
+            continue
         except:
             index = client_list.index(client)
             client_list.remove(client)
