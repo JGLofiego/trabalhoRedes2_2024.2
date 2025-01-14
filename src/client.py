@@ -1,5 +1,7 @@
 import socket, threading, time
-from crypto import criptografar, descriptografar
+from crypto import criptografar, descriptografar, sendEncodeMsg
+from getpass import getpass
+
 
 def reconnect():
     while True:
@@ -22,32 +24,37 @@ try:
     print("Conexão estabelecida!")
 except:
     client = reconnect()
+    
 
 def receive(client: socket.socket):
+    auth_choice = None
     while True:
         try:
-            # Receber a mensagem criptografada e descriptografá-la
-            data = client.recv(2048).decode("ascii")
-            if "|" in data:
-                iv_str, mensagem_criptografada = data.split('|')
-                iv = [int(x) for x in iv_str.split(',')]
-                mensagem_criptografada = [int(b) for b in mensagem_criptografada.strip('[]').split(',')]
-                mensagem = descriptografar(iv, mensagem_criptografada)
-            else:
-                if data == "REGISTER_OR_LOGIN":
-                    choice = input("Digite 'REGISTER' para cadastrar ou 'LOGIN' para logar: ")
-                    client.send(choice.encode("ascii"))
-                    
-                elif data == "USERNAME":
-                    username = input("Digite o nome de usuário: ")
-                    client.send(username.encode("ascii"))
-                    
-                elif data == "PASSWORD":
-                    password = input("Digite a senha: ")
-                    client.send(password.encode("ascii"))
-                    
-                elif data == "USER_EXISTS":
-                    print("Usuário já existe. Tente novamente.")
+            message = client.recv(1024).decode("ascii")
+            
+            message = descriptografar(message)
+
+            if message == "REGISTER_OR_LOGIN":
+                auth_choice = input("Digite 'REGISTER' para cadastrar ou 'LOGIN' para logar: ")
+                sendEncodeMsg(client, auth_choice)
+
+            elif message == "USERNAME":
+                username = input("Digite o nome de usuário: ")
+                sendEncodeMsg(client, username)
+
+            elif message == "PASSWORD":
+                while True:
+                    password = getpass("Digite a senha: ")
+                    if auth_choice == "REGISTER":
+                        confirm = getpass("Confirme sua senha: ")
+                        if confirm != password:
+                            print("Senhas não coincidem, tente novamente.")
+                            continue
+                    sendEncodeMsg(client, password)
+                    break
+
+            elif message == "USER_EXISTS":
+                print("Usuário já existe. Tente novamente.")
 
                 elif data == "REGISTER_SUCCESS":
                     print("Cadastro realizado com sucesso!")
@@ -83,14 +90,13 @@ def receive(client: socket.socket):
 def write(client: socket.socket):
     while True:
         try:
-            mensagem = input("Digite sua mensagem: ")
+            message = input()
             
-            iv, mensagem_criptografada = criptografar(mensagem)
-            
-            iv_str = ','.join([str(x) for x in iv])
-            client.send(f"{iv_str}|{mensagem_criptografada}".encode("ascii"))
-        except Exception as e:
-            print(f"Não foi possível enviar mensagem: {e}")
+            sendEncodeMsg(client, message)
+        except EOFError:
+            print("Mensagem inválida.")
+        except OSError:
+            print("Não foi possível enviar mensagem.")
             break
 
 # Inicializar thread de recebimento

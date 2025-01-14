@@ -1,6 +1,6 @@
 import socket, threading
 import os
-from crypto import criptografar, descriptografar
+from crypto import criptografar, descriptografar, sendEncodeMsg
 
 HOST = "localhost"
 PORT = 3000
@@ -34,73 +34,129 @@ def broadcast(message, sender: socket.socket | None = None):
     for client in client_list:
         if client != sender:
             try:
-                # Criptografar a mensagem antes de enviar
-                iv, mensagem_criptografada = criptografar(message)
-                iv_str = ','.join([str(x) for x in iv])
-                client.send(f"{iv_str}|{mensagem_criptografada}".encode("ascii"))
-            except:
-                client_list.remove(client)
+                sendEncodeMsg(client, message)
+            except Exception as e:
+                print(f"Erro ao enviar mensagem para o cliente {client.getpeername()}: {e}")
+
+def handle(client: socket.socket):    
+    private = None
+    
+    addr = client.getpeername()
+    
+    while True:
+        try:
+            data = client.recv(1024).decode("ascii")
+            print(f"mensagem recebida de {addr}:", data)
+            
+            message = descriptografar(data)
+            
+            if message.startswith("/join"):
+                parts = message.split(" ", 1)
+                
+                if len(parts) < 2:
+                    sendEncodeMsg(client, "INVALID")
+                    continue
+                
+                index = usernames.index(parts[1])
+                private = client_list[index]
+                
+                sendEncodeMsg(client, f"JOINED {parts[1]}")
+            elif message.startswith("/leave"):
+                private = None
+                sendEncodeMsg(client, "LEFT")
+            else:
+                if not private:
+                    name = usernames[client_list.index(client)]
+                    broadcast(f"{name}: {message}", client)
+                else:
+                    try:
+                        index_client = client_list.index(client)
+                        sendEncodeMsg(private, f"{usernames[index_client]} >> {message}")
+                    except OSError:
+                        sendEncodeMsg(client, "USER_LEFT")
+                        private = None
+                        continue
+        except ValueError:
+            sendEncodeMsg(client, "USER_NOT_FOUND")
+            continue
+        except:
+            client.close()
+            index = client_list.index(client)
+            client_list.remove(client)
+            print(f"Conexão removida: {addr}")
+            broadcast(f"{usernames[index]} saiu do chat.")
+            usernames.pop(index)
+            break
 
 def authenticate(client: socket.socket):
     while True:
         addr = client.getpeername()
         
-        # Requisitar autenticação sem criptografia
-        client.send("REGISTER_OR_LOGIN".encode("ascii"))
+        sendEncodeMsg(client, "REGISTER_OR_LOGIN")
         print(f"Requisitando escolha de autenticação de {addr}")
         choice = client.recv(1024).decode("ascii")
         
+        choice = descriptografar(choice)
+
         if choice == "REGISTER":
             print(f"Registro escolhido por {addr}")
             
             print(f"Requisitando username de {addr}")
-            client.send("USERNAME".encode("ascii"))
+            sendEncodeMsg(client, "USERNAME")
             
             username = client.recv(1024).decode("ascii")
             print(f"Usuario recebido de {addr}: {username}")
             
+            username = descriptografar(username)
+
             if username in users:
                 print(f"Usuário {username} já existe.")
-                client.send("USER_EXISTS".encode("ascii"))
+                sendEncodeMsg(client, "USER_EXISTS")
                 continue
 
             print(f"Requisitando senha de {addr}")
-            client.send("PASSWORD".encode("ascii"))
+            sendEncodeMsg(client, "PASSWORD")
             password = client.recv(1024).decode("ascii")
             print(f"Senha recebida de {addr}")
             
+            password = descriptografar(password)
+
             users[username] = password
             save_user(username, password)
             
             print(f"Usuário {username} registrado com sucesso em {addr}.")
-            client.send("REGISTER_SUCCESS".encode("ascii"))
+            sendEncodeMsg(client, "REGISTER_SUCCESS")
             return username
 
         elif choice == "LOGIN":
             print(f"Login escolhido por {addr}")
             
             print(f"Requisitando username de {addr}")
-            client.send("USERNAME".encode("ascii"))
+            sendEncodeMsg(client, "USERNAME")
             username = client.recv(1024).decode("ascii")
             print(f"Usuario recebido de {addr}: {username}")
+            
+            username = descriptografar(username)
 
             if username not in users:
                 print(f"Usuário {username} não encontrado.")
-                client.send("USER_NOT_FOUND".encode("ascii"))
+                sendEncodeMsg(client, "USER_NOT_FOUND")
                 continue
 
             print(f"Requisitando senha de {addr}")
-            client.send("PASSWORD".encode("ascii"))
+            sendEncodeMsg(client, "PASSWORD")
             password = client.recv(1024).decode("ascii")
             print(f"Senha recebida de {addr}")
             
+            password = descriptografar(password)
+
             if users[username] != password:
                 print(f"Senha incorreta para o usuário {username}.")
-                client.send("INVALID_PASSWORD".encode("ascii"))
+                sendEncodeMsg(client, "INVALID_PASSWORD")
                 continue
 
             print(f"Usuário {username} logado com sucesso em {addr}.")
-            client.send("LOGIN_SUCCESS".encode("ascii"))
+            sendEncodeMsg(client, "LOGIN_SUCCESS")
             return username
         else:
             client.send("INVALID_CHOICE".encode("ascii"))
