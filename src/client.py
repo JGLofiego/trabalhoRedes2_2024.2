@@ -1,54 +1,54 @@
-import socket, threading, time
-from crypto import gerar_chave_publica_e_privada, decifrar_texto, cifrar_texto
+import socket
+import threading
+import time
+from crypto import gerar_chave_publica_e_privada, cifrar_texto, encode_message
 
+SERVER_HOST = "localhost"
+PORT = 3000
+
+public_key, private_key = gerar_chave_publica_e_privada()
+n, e = public_key
 
 def reconnect():
     while True:
         try:
             print("Tentando reconectar...")
-            client = socket.create_connection(("localhost", 3000))
+            client = socket.create_connection((SERVER_HOST, PORT))
             print("Conexão restabelecida!")
-            break
+            return client
         except:
             time.sleep(5)
-            pass
-    return client
-
-SERVER_HOST = "localhost"
-HOST = "127.0.0.1"
-PORT = 3000
-
-# Gera chaves para criptografia
-public_key, private_key = gerar_chave_publica_e_privada()
-n, e = public_key
-# print(f"Chave pública: {public_key}")
-# print(f"Chave privada: {private_key}")
-# print(f"n: {n}")
-# print(f"e: {e}")
 
 try:
     client = socket.create_connection((SERVER_HOST, PORT))
     print("Conexão estabelecida!")
 except:
     client = reconnect()
-    
 
 def receive(client: socket.socket):
+    global n, e  # Atualizar as variáveis globais para a chave pública recebida
     while True:
         try:
-            message = client.recv(1024).decode("ascii")
+            message = client.recv(1024).decode("utf-8")
+            
+            # Receber chave pública do servidor
+            if "," in message and len(message.split(",")) == 2:
+                n, e = map(int, message.split(","))
+                print(f"Chave pública recebida do servidor: n={n}, e={e}")
+                continue
 
+            # Processar mensagens normais
             if message == "REGISTER_OR_LOGIN":
                 choice = input("Digite 'REGISTER' para cadastrar ou 'LOGIN' para logar: ")
-                client.send(choice.encode("ascii"))
+                client.send(choice.encode("utf-8"))
 
             elif message == "USERNAME":
                 username = input("Digite o nome de usuário: ")
-                client.send(username.encode("ascii"))
+                client.send(username.encode("utf-8"))
 
             elif message == "PASSWORD":
                 password = input("Digite a senha: ")
-                client.send(password.encode("ascii"))
+                client.send(password.encode("utf-8"))
 
             elif message == "USER_EXISTS":
                 print("Usuário já existe. Tente novamente.")
@@ -71,21 +71,32 @@ def receive(client: socket.socket):
 
             else:
                 print(message)
-        except:
-            print("Um erro ocorreu!")
+        except Exception as ex:
+            print(f"Erro: {ex}")
             client.close()
             client = reconnect()
+            
+def verificar_tamanho_unicode(mensagem):
+    for char in mensagem:
+        if ord(char) > 0x10FFFF:
+            raise ValueError(f"Caractere inválido encontrado: {char}")
+
 
 def write(client: socket.socket):
     while True:
         try:
             message = input("Digite sua mensagem: ")
-            client.send(message.encode("ascii"))
+            verificar_tamanho_unicode(message)
+            encrypted_message = cifrar_texto(message, e, n)  # Usar a chave pública recebida do servidor
+            encrypted_message_str = encode_message(encrypted_message)
+            client.send(encrypted_message_str.encode("utf-8"))
         except EOFError:
             print("Mensagem inválida.")
         except OSError:
             print("Não foi possível enviar mensagem.")
             break
+
+
 
 thread_rcv = threading.Thread(target=receive, args=(client,))
 thread_rcv.start()
