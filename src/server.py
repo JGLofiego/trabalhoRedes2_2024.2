@@ -1,6 +1,7 @@
 import socket
 import threading
 import os
+from crypto import criptografar, descriptografar
 
 HOST = "localhost"
 PORT = 3000
@@ -17,6 +18,10 @@ print(f"Iniciando o server no host {server_address[0]} com a porta {server_addre
 client_list = []
 usernames = []
 users = {}  # Armazena usernames e senhas
+
+def sendEncodeMsg(client: socket.socket, message: str):
+    code_message = criptografar(message)
+    client.send()
 
 # Carrega usuários do arquivo (se existir)
 if os.path.exists("users.txt"):
@@ -43,8 +48,10 @@ def handle(client: socket.socket):
     
     while True:
         try:
-            message = client.recv(1024).decode("ascii")
-            print(f"mensagem recebida de {client.getpeername()}:", message)
+            data = client.recv(1024).decode("ascii")
+            print(f"mensagem recebida de {client.getpeername()}:", data)
+            
+            message = descriptografar(data)
             
             if message.startswith("/join"):
                 parts = message.split(" ", 1)

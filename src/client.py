@@ -1,4 +1,6 @@
 import socket, threading, time
+from crypto import criptografar, descriptografar
+from getpass import getpass
 
 
 def reconnect():
@@ -25,21 +27,29 @@ except:
     
 
 def receive(client: socket.socket):
+    auth_choice = None
     while True:
         try:
             message = client.recv(1024).decode("ascii")
 
             if message == "REGISTER_OR_LOGIN":
-                choice = input("Digite 'REGISTER' para cadastrar ou 'LOGIN' para logar: ")
-                client.send(choice.encode("ascii"))
+                auth_choice = input("Digite 'REGISTER' para cadastrar ou 'LOGIN' para logar: ")
+                client.send(auth_choice.encode("ascii"))
 
             elif message == "USERNAME":
                 username = input("Digite o nome de usuário: ")
                 client.send(username.encode("ascii"))
 
             elif message == "PASSWORD":
-                password = input("Digite a senha: ")
-                client.send(password.encode("ascii"))
+                while True:
+                    password = getpass("Digite a senha: ")
+                    if auth_choice == "REGISTER":
+                        confirm = getpass("Confirme sua senha: ")
+                        if confirm != password:
+                            print("Senhas não coincidem, tente novamente.")
+                            continue
+                    client.send(password.encode("ascii"))
+                    break
 
             elif message == "USER_EXISTS":
                 print("Usuário já existe. Tente novamente.")
