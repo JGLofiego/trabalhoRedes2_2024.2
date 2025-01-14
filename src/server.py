@@ -1,6 +1,6 @@
-import socket
-import threading
+import socket, threading
 import os
+from crypto import criptografar, descriptografar
 
 HOST = "localhost"
 PORT = 3000
@@ -29,70 +29,27 @@ def save_user(username, password):
     """Salva um novo usuário no arquivo."""
     with open("users.txt", "a") as f:
         f.write(f"{username},{password}\n")
-
-def broadcast(message: str, sender: socket.socket | None = None):
+        
+def broadcast(message, sender: socket.socket | None = None):
     for client in client_list:
         if client != sender:
             try:
-                client.send(message.encode("utf-8"))
-            except Exception as e:
-                print(f"Erro ao enviar mensagem para o cliente {client.getpeername()}: {e}")
-
-def handle(client: socket.socket):    
-    private = None
-    
-    while True:
-        try:
-            message = client.recv(1024).decode("ascii")
-            print(f"mensagem recebida de {client.getpeername()}:", message)
-            
-            if message.startswith("/join"):
-                parts = message.split(" ", 1)
-                
-                if len(parts) < 2:
-                    client.send("INVALID".encode("ascii"))
-                    continue
-                
-                index = usernames.index(parts[1])
-                private = client_list[index]
-                
-                
-                client.send(f"JOINED {parts[1]}".encode("ascii"))
-            elif message.startswith("/leave"):
-                private = None
-                client.send("LEFT".encode("ascii"))
-            else:
-                if not private:
-                    name = usernames[client_list.index(client)]
-                    broadcast(f"{name}: {message}", client)
-                else:
-                    try:
-                        index_client = client_list.index(client)
-                        private.send(f"{usernames[index_client]} >> {message}".encode("ascii"))
-                    except OSError:
-                        client.send("USER_LEFT".encode("ascii"))
-                        private = None
-                        continue
-        except ValueError:
-            client.send("USER_NOT_FOUND".encode("ascii"))
-            continue
-        except:
-            index = client_list.index(client)
-            client_list.remove(client)
-            print(f"Conexão removida: {client.getpeername()}")
-            client.close()
-            broadcast(f"{usernames[index]} saiu do chat.")
-            usernames.pop(index)
-            break
+                # Criptografar a mensagem antes de enviar
+                iv, mensagem_criptografada = criptografar(message)
+                iv_str = ','.join([str(x) for x in iv])
+                client.send(f"{iv_str}|{mensagem_criptografada}".encode("ascii"))
+            except:
+                client_list.remove(client)
 
 def authenticate(client: socket.socket):
     while True:
         addr = client.getpeername()
         
+        # Requisitar autenticação sem criptografia
         client.send("REGISTER_OR_LOGIN".encode("ascii"))
         print(f"Requisitando escolha de autenticação de {addr}")
         choice = client.recv(1024).decode("ascii")
-
+        
         if choice == "REGISTER":
             print(f"Registro escolhido por {addr}")
             
@@ -101,7 +58,7 @@ def authenticate(client: socket.socket):
             
             username = client.recv(1024).decode("ascii")
             print(f"Usuario recebido de {addr}: {username}")
-
+            
             if username in users:
                 print(f"Usuário {username} já existe.")
                 client.send("USER_EXISTS".encode("ascii"))
@@ -111,7 +68,7 @@ def authenticate(client: socket.socket):
             client.send("PASSWORD".encode("ascii"))
             password = client.recv(1024).decode("ascii")
             print(f"Senha recebida de {addr}")
-
+            
             users[username] = password
             save_user(username, password)
             
@@ -136,7 +93,7 @@ def authenticate(client: socket.socket):
             client.send("PASSWORD".encode("ascii"))
             password = client.recv(1024).decode("ascii")
             print(f"Senha recebida de {addr}")
-
+            
             if users[username] != password:
                 print(f"Senha incorreta para o usuário {username}.")
                 client.send("INVALID_PASSWORD".encode("ascii"))
@@ -145,33 +102,39 @@ def authenticate(client: socket.socket):
             print(f"Usuário {username} logado com sucesso em {addr}.")
             client.send("LOGIN_SUCCESS".encode("ascii"))
             return username
+        else:
+            client.send("INVALID_CHOICE".encode("ascii"))
+
+def handle(client: socket.socket):
+    username = authenticate(client)
+    if username:
+        client_list.append(client)
+        broadcast(f"{username} se juntou ao chat!")
+
+        while True:
+            try:
+                # Receber a mensagem criptografada e descriptografá-la
+                data = client.recv(2048).decode("ascii")
+                if "|" in data:
+                    iv_str, mensagem_criptografada = data.split('|')
+                    iv = [int(x) for x in iv_str.split(',')]
+                    mensagem_criptografada = [int(b) for b in mensagem_criptografada.strip('[]').split(',')]
+                    mensagem = descriptografar(iv, mensagem_criptografada)
+                    print(f"mensagem recebida de {client.getpeername()}:", mensagem)
+                    broadcast(mensagem)
+            except:
+                client_list.remove(client)
+                client.close()
+                break
 
 def receive():
     while True:
         try:
             client, address = sock.accept()
             print(f"Conexão estabelecida: {address}")
-        except:
-            print("Conexão falhou.")
-            client.close()
-            continue
-        
-        try:
-            username = authenticate(client)
-        except:
-            print(f"Erro de autenticação da conexão {client.getpeername()}.")
-            print(f"Removendo conexão {client.getpeername()}.")
-            client.close()
-            continue
-        
-        client_list.append(client)
-        usernames.append(username)
+            thread = threading.Thread(target=handle, args=(client,))
+            thread.start()
+        except Exception as e:
+            print(f"Erro ao aceitar conexão: {e}")
 
-        broadcast(f"{username} se juntou ao chat!")
-
-        thread = threading.Thread(target=handle, args=(client,))
-        thread.start()
-
-for i in range(MAX_USERS):
-    thread = threading.Thread(target=receive)
-    thread.start()
+receive()
