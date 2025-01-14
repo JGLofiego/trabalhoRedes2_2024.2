@@ -30,9 +30,13 @@ def save_user(username, password):
     with open("users.txt", "a") as f:
         f.write(f"{username},{password}\n")
 
-def broadcast(message: str):
+def broadcast(message: str, sender: socket.socket | None = None):
     for client in client_list:
-        client.send(message.encode("ascii"))
+        if client != sender:
+            try:
+                client.send(message.encode("utf-8"))
+            except Exception as e:
+                print(f"Erro ao enviar mensagem para o cliente {client.getpeername()}: {e}")
 
 def handle(client: socket.socket):    
     private = None
@@ -60,7 +64,7 @@ def handle(client: socket.socket):
             else:
                 if not private:
                     name = usernames[client_list.index(client)]
-                    broadcast(f"{name}: {message}")
+                    broadcast(f"{name}: {message}", client)
                 else:
                     try:
                         index_client = client_list.index(client)
