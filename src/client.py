@@ -1,5 +1,5 @@
 import socket, threading, time
-from crypto import criptografar, descriptografar
+from crypto import criptografar, descriptografar, sendEncodeMsg
 from getpass import getpass
 
 
@@ -31,14 +31,16 @@ def receive(client: socket.socket):
     while True:
         try:
             message = client.recv(1024).decode("ascii")
+            
+            message = descriptografar(message)
 
             if message == "REGISTER_OR_LOGIN":
                 auth_choice = input("Digite 'REGISTER' para cadastrar ou 'LOGIN' para logar: ")
-                client.send(auth_choice.encode("ascii"))
+                sendEncodeMsg(client, auth_choice)
 
             elif message == "USERNAME":
                 username = input("Digite o nome de usuário: ")
-                client.send(username.encode("ascii"))
+                sendEncodeMsg(client, username)
 
             elif message == "PASSWORD":
                 while True:
@@ -48,7 +50,7 @@ def receive(client: socket.socket):
                         if confirm != password:
                             print("Senhas não coincidem, tente novamente.")
                             continue
-                    client.send(password.encode("ascii"))
+                    sendEncodeMsg(client, password)
                     break
 
             elif message == "USER_EXISTS":
@@ -87,7 +89,8 @@ def write(client: socket.socket):
     while True:
         try:
             message = input()
-            client.send(message.encode("ascii"))
+            
+            sendEncodeMsg(client, message)
         except EOFError:
             print("Mensagem inválida.")
         except OSError:
