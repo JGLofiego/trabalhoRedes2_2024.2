@@ -43,7 +43,7 @@ def handle(client: socket.socket):
     private = None
     
     addr = client.getpeername()
-    
+    n=0
     while True:
         try:
             data = client.recv(1024).decode("ascii")
@@ -51,6 +51,22 @@ def handle(client: socket.socket):
             
             message = descriptografar(data)
             
+            if message.startswith("/file"):
+                n = n + 1
+                message, filesize, name = message.split(", ", 2)
+                name = os.path.basename(name)
+                print("Recebendo arquivo.")
+                filename = f"../arquivos_testes/recebidos/{addr[1]}_{n}_{name}"
+                with open(filename, "wb") as f:
+                    filesize = int(filesize)
+                    while filesize>0:
+                        print("Recebendo arquivo.")
+                        bytes_read = client.recv(1024)
+                        f.write(bytes_read)
+                        filesize = filesize-1024
+                    print("Arquivo recebido.")
+                continue
+    
             if message.startswith("/join"):
                 parts = message.split(" ", 1)
                 
@@ -185,6 +201,17 @@ def receive():
 
         thread = threading.Thread(target=handle, args=(client,))
         thread.start()
+
+def read_file(client: socket.socket):
+    print("Recebendo arquivo.")
+    with open("r_teste.txt", "wb") as f:
+        while True:
+            print("Recebendo arquivo.")
+            bytes_read = client.recv(1024)
+            if not bytes_read:    
+                print("Arquivo recebido.")
+                break
+            f.write(bytes_read)
 
 for i in range(MAX_USERS):
     thread = threading.Thread(target=receive)

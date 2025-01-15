@@ -1,4 +1,4 @@
-import socket, threading, time
+import socket, threading, time, os
 from crypto import criptografar, descriptografar, sendEncodeMsg
 from getpass import getpass
 
@@ -89,13 +89,30 @@ def write(client: socket.socket):
     while True:
         try:
             message = input()
-            
-            sendEncodeMsg(client, message)
+            if(message.startswith("/file")):
+                message, name = message.split(" ", 1)
+                filename = "./arquivos_testes/"+ name
+                filesize = os.path.getsize(filename)
+                sendEncodeMsg(client, f"{message}, {filesize}, {filename}")
+                thread_wrt = threading.Thread(target=send_file, args=(client,filename))
+                thread_wrt.start()
+            else:
+                sendEncodeMsg(client, message)
         except EOFError:
             print("Mensagem inválida.")
         except OSError:
             print("Não foi possível enviar mensagem.")
             break
+
+def send_file(client: socket.socket, filename: str):
+    with open(filename, "rb") as f:
+        while True:
+            print("Enviando arquivo.")
+            bytes_read = f.read(1024)
+            if not bytes_read:
+                print("Arquivo enviado.")
+                break
+            client.sendall(bytes_read)
 
 thread_rcv = threading.Thread(target=receive, args=(client,))
 thread_rcv.start()
