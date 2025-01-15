@@ -59,12 +59,12 @@ def handle(client: socket.socket):
                 filename = f"../arquivos_testes/recebidos/{addr[1]}_{n}_{name}"
                 with open(filename, "wb") as f:
                     filesize = int(filesize)
+                    print(f"Fazendo download do arquivo {addr[1]}_{n}_{name} ...")
                     while filesize>0:
-                        print("Recebendo arquivo...")
                         bytes_read = client.recv(1024)
                         f.write(bytes_read)
                         filesize = filesize-1024
-                    print("Arquivo recebido com sucesso.")
+                    print("Download concluido com sucesso.")
                 continue
     
             if message.startswith("/join"):

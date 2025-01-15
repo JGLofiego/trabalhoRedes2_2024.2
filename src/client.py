@@ -106,11 +106,11 @@ def write(client: socket.socket):
 
 def send_file(client: socket.socket, filename: str):
     with open(filename, "rb") as f:
+        print(f"Fazendo upload do arquivo {filename} ...")
         while True:
-            print("Enviando arquivo.")
             bytes_read = f.read(1024)
             if not bytes_read:
-                print("Arquivo enviado.")
+                print("Arquivo enviado com sucesso.")
                 break
             client.sendall(bytes_read)
 
