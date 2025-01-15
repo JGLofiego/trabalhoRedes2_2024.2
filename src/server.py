@@ -15,7 +15,7 @@ sock.bind(server_address)
 sock.listen(MAX_USERS)
 print(f"Iniciando o server no host {server_address[0]} com a porta {server_address[1]}")
 
-client_list = []
+client_list: list[socket.socket] = []
 usernames = []
 users = {}  # Armazena usernames e senhas
 
@@ -55,16 +55,16 @@ def handle(client: socket.socket):
                 n = n + 1
                 message, filesize, name = message.split(", ", 2)
                 name = os.path.basename(name)
-                print("Recebendo arquivo.")
+                print(f"Recebendo arquivo {name}.")
                 filename = f"../arquivos_testes/recebidos/{addr[1]}_{n}_{name}"
                 with open(filename, "wb") as f:
                     filesize = int(filesize)
                     while filesize>0:
-                        print("Recebendo arquivo.")
+                        print("Recebendo arquivo...")
                         bytes_read = client.recv(1024)
                         f.write(bytes_read)
                         filesize = filesize-1024
-                    print("Arquivo recebido.")
+                    print("Arquivo recebido com sucesso.")
                 continue
     
             if message.startswith("/join"):
@@ -72,15 +72,18 @@ def handle(client: socket.socket):
                 
                 if len(parts) < 2:
                     sendEncodeMsg(client, "INVALID")
+                    print(f"Requisição de /join inválida por {addr}")
                     continue
                 
                 index = usernames.index(parts[1])
                 private = client_list[index]
                 
                 sendEncodeMsg(client, f"JOINED {parts[1]}")
+                print(f"{addr} entrou em chat privado com {private.getpeername()}")
             elif message.startswith("/leave"):
                 private = None
                 sendEncodeMsg(client, "LEFT")
+                print(f"{addr} saiu do modo privado")
             else:
                 if not private:
                     name = usernames[client_list.index(client)]
@@ -95,6 +98,7 @@ def handle(client: socket.socket):
                         continue
         except ValueError:
             sendEncodeMsg(client, "USER_NOT_FOUND")
+            print("Usuário do /join não encontrado.")
             continue
         except:
             client.close()
